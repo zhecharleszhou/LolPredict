@@ -1,2 +1,4 @@
 gunicorn==19.9.0
 requests==2.20.0
+flask==1.0.3
+bokeh==1.2.0
