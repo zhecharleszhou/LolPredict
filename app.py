@@ -8,11 +8,11 @@ def index():
 
 @app.route('/', methods=['POST'])
 def my_form_post():
-    text = request.form['summonerName']
-    text2 = request.form['champName']
-    processed_text = text.upper()
-    processed_text2 = text.upper()
-    return 'You entered: ' + processed_text + ' ' + processed_text2
+    sumNameText = request.form['summonerName']
+    champNameText = request.form['champName']
+    processed_sumName = sumNameText.upper()
+    processed_champName = champNameText.upper()
+    return 'You entered: ' + processed_sumName + ' ' + processed_champName
 
 @app.route('/about')
 def about():
