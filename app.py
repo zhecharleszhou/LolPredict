@@ -6,13 +6,13 @@ app = Flask(__name__)
 def index():
   return render_template('parallax.html')
 
-@app.route('/', methods=['POST'])
+@app.route('/', methods=['POST', 'GET'])
 def my_form_post():
     sumNameText = request.form['summonerName']
     champNameText = request.form['champName']
     processed_sumName = sumNameText.upper()
-    processed_champName = champNameText.upper()
-    return 'You entered: ' + processed_sumName + ' ' + processed_champName
+    processed_champName = champNameText.capitalize()
+    return render_template("parallax.html",result = processed_champName)
 
 @app.route('/about')
 def about():
