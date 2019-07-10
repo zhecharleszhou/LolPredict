@@ -2,12 +2,8 @@ from flask import Flask, render_template, request, redirect
 
 app = Flask(__name__)
 
-@app.route('/')
-def index():
-  return render_template('parallax.html')
-
 @app.route('/', methods=['POST', 'GET'])
-def my_form_post():
+def index():
     sumNameText = request.form['summonerName']
     champNameText = request.form['champName']
     processed_sumName = sumNameText.upper()
