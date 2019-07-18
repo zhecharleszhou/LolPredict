@@ -12,7 +12,7 @@ def my_form_post():
     champNameText = request.form['champName']
     processed_sumName = sumNameText.upper()
     processed_champName = champNameText.capitalize()
-    return render_template("parallax.html",result = processed_champName)
+    return render_template("parallax.html/#predictor",result = processed_champName)
 
 @app.route('/about')
 def about():
