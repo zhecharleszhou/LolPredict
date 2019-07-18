@@ -2,13 +2,10 @@ from flask import Flask, render_template, request, redirect
 
 app = Flask(__name__)
 
-@app.route('/', methods=['POST', 'GET'])
+@app.route('/')
 def index():
-    sumNameText = request.form['summonerName']
-    champNameText = request.form['champName']
-    processed_sumName = sumNameText.upper()
-    processed_champName = champNameText.capitalize()
-    return render_template("parallax.html",result = processed_champName)
+
+    return render_template("parallax.html")
 
 @app.route('/about')
 def about():
