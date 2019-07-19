@@ -2,17 +2,18 @@ from flask import Flask, render_template, request, redirect
 
 app = Flask(__name__)
 
-@app.route('/')
-def index():
-  return render_template('parallax.html')
-
 @app.route('/', methods=['POST', 'GET'])
-def my_form_post():
-    sumNameText = request.form['summonerName']
-    champNameText = request.form['champName']
-    processed_sumName = sumNameText.upper()
-    processed_champName = champNameText.capitalize()
-    return render_template("parallax.html/#predictor",result = processed_champName)
+def index():
+    
+    if request.method == 'POST':
+        sumNameText = request.form['summonerName']
+        champNameText = request.form['champName']
+        processed_sumName = sumNameText.upper()
+        processed_champName = champNameText.capitalize()
+        return render_template("parallax.html/",result = processed_champName)
+    else:    
+        return render_template('parallax.html')
+
 
 @app.route('/about')
 def about():
