@@ -136,7 +136,15 @@ body, html {
     </div>
   </div>
   
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.min.js"></script>
   
+  <div class="chart" id="bargraph">
+    <script>
+        var graphs = {{plot | safe}};
+        Plotly.plot('bargraph',graphs,{});
+    </script>
+  </div>
   
   
   <p class="w3-large w3-center w3-padding-16">You are really good at:</p>
