@@ -63,10 +63,8 @@ body, html {
     </a>
     <a href="#home" class="w3-bar-item w3-black w3-button">HOME</a>
     <a href="#predictor" class="w3-bar-item w3-black w3-button w3-hide-small"><i class="fa fa-user"></i> PREDICTOR</a>
-    <a href="#about" class="w3-bar-item w3-black w3-button w3-hide-small"><i class="fa fa-th"></i> ABOUT</a>
+    <a href="#about" class="w3-bar-item w3-black w3-button w3-hide-small"><i class="fa fa-th"></i> ANALYTICS</a>
     <!-- <a href="#contact" class="w3-bar-item w3-button w3-hide-small"><i class="fa fa-envelope"></i> CONTACT</a> -->
-    <a href="#" class="w3-bar-item w3-black w3-button w3-hide-small w3-right w3-hover-red">
-      <i class="fa fa-search"></i>
     </a>
   </div>
 
@@ -98,6 +96,11 @@ body, html {
     <br>
     Champion Name:<br>
     <input name="champName" value="Nautilus">
+    
+    <br>
+    Opponent Champion Name:<br>
+    <input name="oppChampName" value="Brand">
+    
     <br><br>
     
     <input type="submit">
@@ -106,7 +109,7 @@ body, html {
   
   <br><br>
 
-  <h3 class="w3-center">We are predicting your next game with <b> {{ result }} </b> will be a: </h3>
+  <h3 class="w3-center">We are predicting your next game with <b> {{ result }} </b> will be a <b> {{ gameOutcome }} </b> with a <b> {{ gameProb }}% </b> Chance!</h3>
   <img src="https://ddragon.leagueoflegends.com/cdn/9.13.1/img/champion/{{ result }}.png" alt="ChampImage" width="200" height="200" border="3"  class="center">    
   
 </div>
