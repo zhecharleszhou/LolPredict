@@ -106,15 +106,15 @@ def getPlayerData(role):
 
     #load general player data pulled from API
     # get your credentials from environment variables
-    aws_id = 'AKIAJUDILOFF5US4LONQ' #os.environ['AWS_ID']
-    aws_secret = 'LxCUjvD2ttx2H7eqDMPX8qtr88mmS78Jyn6RBTsN' #os.environ['AWS_SECRET']
+    aws_id = os.environ['AWS_ID']
+    aws_secret = os.environ['AWS_SECRET']
     
     client = boto3.client('s3', aws_access_key_id=aws_id,
             aws_secret_access_key=aws_secret)
     bucket_name = 'lolpredict'
     
     ########################### load player data
-#    APIKey = 'RGAPI-1eb5e1ed-33b7-4862-8440-7a6a260039b4' #os.environ.get('League_API')
+#    APIKey = os.environ.get('League_API')
 #    role = 'supp'
 #    rankNames = ['BRONZE',  'SILVER', 'GOLD', 'PLATINUM', 'DIAMOND', 'MASTERS', 'CHALLENGER']
 #    columnNames = ['champion_name','match_rank_score','max_time','goldearned','wardsplaced','damagedealttoobjectives',
