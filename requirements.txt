@@ -5,3 +5,5 @@ bokeh==1.2.0
 plotly==4.0.0
 pandas==0.24.2
 numpy==1.16.4
+boto3==1.9.198
+git+https://github.com/meraki-analytics/cassiopeia.git

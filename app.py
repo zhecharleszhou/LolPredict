@@ -11,7 +11,7 @@ from cassiopeia import Champion, Champions
 import time
 import requests
 import pickle
-
+import os
 
 if sys.version_info[0] < 3: 
     from StringIO import StringIO # Python 2.x
@@ -27,11 +27,11 @@ def index():
     if request.method == 'POST':
         sumNameText = request.form['summonerName']
         champNameText = request.form['champName']
-        #oppChampNameText = request.form['oppChampName']
+        oppChampNameText = request.form['oppChampName']
+        
         processed_sumName = sumNameText.upper()
         processed_champName = champNameText.capitalize()
-        
-        oppChampName = 'Brand'
+        processed_oppChampName = oppChampNameText.capitalize()
         
         role = 'supp'
         columns2Keep = ['champion_name','match_rank_score','max_time','goldearned','wardsplaced','damagedealttoobjectives',
@@ -40,7 +40,7 @@ def index():
         
         dfPlayer,dataYPlayer = getPlayerData(role)
         
-        pred,prob = predictGame(dfPlayer, processed_champName,oppChampName,columns2Keep)
+        pred,prob = predictGame(dfPlayer, processed_champName,processed_oppChampName,columns2Keep)
         if pred == 1:
             predStr = 'WIN'
         else:
@@ -290,14 +290,21 @@ def getPlayerData(role):
     
     return dfPlayer,dataYPlayer
 
-def predictGame(dfPlayer, processed_champName,oppChampName,columns2Keep):
+def predictGame(dfPlayer, processed_champName,processed_oppChampName,columns2Keep):
+    
+    aws_id = os.environ['AWS_ID']
+    aws_secret = os.environ['AWS_SECRET']
+    
+    client = boto3.client('s3', aws_access_key_id=aws_id,
+            aws_secret_access_key=aws_secret)
+    bucket_name = 'lolpredict'
     
     columns_to_encode_champName = ['champion_name']
     columns_to_encode_oppChamp = ['oppsupp']
     columns_to_scale  = columns2Keep[1:-1]
     
-    processed_champName = 'Sona'
-    oppChampName = 'Brand'
+    #processed_champName = 'Sona'
+    #oppChampName = 'Brand'
     
     object_key = 'final_logRegLoL.sav'
     csv_obj = client.get_object(Bucket=bucket_name, Key=object_key)
@@ -323,7 +330,7 @@ def predictGame(dfPlayer, processed_champName,oppChampName,columns2Keep):
     csv_string = body.read()
     scaler = pickle.loads( csv_string )
     
-    rowData = dfPlayer.loc[(dfPlayer['champion_name'] == processed_champName) & (dfPlayer['oppsupp'] == oppChampName)].iloc[0]
+    rowData = dfPlayer.loc[(dfPlayer['champion_name'] == processed_champName) & (dfPlayer['oppsupp'] == processed_oppChampName)].iloc[0]
     encoded_playerChamp =    ohe.transform(rowData[columns_to_encode_champName].values.reshape(1, -1))
     encoded_oppChamp =       oheOpp.transform(rowData[columns_to_encode_oppChamp].values.reshape(1, -1))
     scaled_columns_player  = scaler.transform(rowData[columns_to_scale].values.reshape(1, -1) )
