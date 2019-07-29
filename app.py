@@ -12,6 +12,7 @@ import time
 import requests
 import pickle
 import os
+import sklearn
 
 if sys.version_info[0] < 3: 
     from StringIO import StringIO # Python 2.x
