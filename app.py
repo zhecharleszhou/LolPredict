@@ -76,6 +76,20 @@ def requestMatchInfo(matchID, APIKey):
     response = requests.get(URL)
     return response.json()
 
+def getBucketModel(client,bucket_name,object_key):
+    csv_obj = client.get_object(Bucket=bucket_name, Key=object_key)
+    body = csv_obj['Body']
+    csv_string = body.read()
+    return pickle.loads( csv_string )
+
+def getBucketFile(client,bucket_name,object_key):
+    csv_obj = client.get_object(Bucket=bucket_name, Key=object_key)
+    body = csv_obj['Body']
+    csv_string = body.read().decode('utf-8')
+    return pd.read_csv(StringIO(csv_string))
+
+################## BELOW ARE ANALYSIS METHODS
+
 def getGeneralData(columns2Keep):
      #load general player data pulled from API
     # get your credentials from environment variables
@@ -84,14 +98,11 @@ def getGeneralData(columns2Keep):
     
     client = boto3.client('s3', aws_access_key_id=aws_id,
             aws_secret_access_key=aws_secret)
+    
     bucket_name = 'lolpredict'
-    
     object_key = 'supp_playerDB_cleaned.csv'
-    csv_obj = client.get_object(Bucket=bucket_name, Key=object_key)
-    body = csv_obj['Body']
-    csv_string = body.read().decode('utf-8')
     
-    data = pd.read_csv(StringIO(csv_string))
+    data = getBucketFile(client,bucket_name,object_key)
 
     # process overall player data
     data.columns = data.columns.str.strip().str.lower().str.replace(' ', '_')
@@ -112,7 +123,7 @@ def getPlayerData(role):
     
     client = boto3.client('s3', aws_access_key_id=aws_id,
             aws_secret_access_key=aws_secret)
-    bucket_name = 'lolpredict'
+    
     
     ########################### load player data
 #    APIKey = os.environ.get('League_API')
@@ -272,19 +283,14 @@ def getPlayerData(role):
 #            dfPlayer.loc[iRow] = champMean
 #    
     ##############################################
-    
+     
+    bucket_name = 'lolpredict'
     object_key = 'player.csv'
-    csv_obj = client.get_object(Bucket=bucket_name, Key=object_key)
-    body = csv_obj['Body']
-    csv_string = body.read().decode('utf-8')
-    dfPlayer = pd.read_csv(StringIO(csv_string))
+    dfPlayer = getBucketFile(client,bucket_name,object_key)
     #dfPlayer = pd.read_csv("I:\\Users\\The Iron Maiden\\Documents\\GitHub\\DIChallenge\\player.csv")
     
     object_key = 'player_y.csv'
-    csv_obj = client.get_object(Bucket=bucket_name, Key=object_key)
-    body = csv_obj['Body']
-    csv_string = body.read().decode('utf-8')
-    dataYPlayer = pd.read_csv(StringIO(csv_string))
+    dataYPlayer = getBucketFile(client,bucket_name,object_key)
     
     #dataYPlayer = pd.read_csv("I:\\Users\\The Iron Maiden\\Documents\\GitHub\\DIChallenge\\player_y.csv")
     dfPlayer = dfPlayer.drop('player'+role,axis=1) # TEMPORARY UNTIL REMOVE THAT COLUMN
@@ -304,44 +310,39 @@ def predictGame(dfPlayer, processed_champName,processed_oppChampName,columns2Kee
     columns_to_encode_oppChamp = ['oppsupp']
     columns_to_scale  = columns2Keep[1:-1]
     
-    #processed_champName = 'Sona'
-    #oppChampName = 'Brand'
+    processed_champName = 'Veigar'
+    processed_oppChampName = 'Pyke'
     
+    #### Load pickled ML feature transformers
     object_key = 'final_logRegLoL.sav'
-    csv_obj = client.get_object(Bucket=bucket_name, Key=object_key)
-    body = csv_obj['Body']
-    csv_string = body.read()
-    loaded_model = pickle.loads( csv_string )
-
+    loaded_model = getBucketModel(client,bucket_name,object_key)
+    
     object_key = 'ohe_lolpredict.sav'
-    csv_obj = client.get_object(Bucket=bucket_name, Key=object_key)
-    body = csv_obj['Body']
-    csv_string = body.read()
-    ohe = pickle.loads( csv_string )
+    ohe = getBucketModel(client,bucket_name,object_key)
     
     object_key = 'oheOpp_lolpredict.sav'
-    csv_obj = client.get_object(Bucket=bucket_name, Key=object_key)
-    body = csv_obj['Body']
-    csv_string = body.read()
-    oheOpp = pickle.loads( csv_string )
+    oheOpp = getBucketModel(client,bucket_name,object_key)
 
     object_key = 'scaler_lolpredict.sav'
-    csv_obj = client.get_object(Bucket=bucket_name, Key=object_key)
-    body = csv_obj['Body']
-    csv_string = body.read()
-    scaler = pickle.loads( csv_string )
+    scaler = getBucketModel(client,bucket_name,object_key)
     
-    rowData = dfPlayer.loc[(dfPlayer['champion_name'] == processed_champName) & (dfPlayer['oppsupp'] == processed_oppChampName)].iloc[0]
-    encoded_playerChamp =    ohe.transform(rowData[columns_to_encode_champName].values.reshape(1, -1))
-    encoded_oppChamp =       oheOpp.transform(rowData[columns_to_encode_oppChamp].values.reshape(1, -1))
-    scaled_columns_player  = scaler.transform(rowData[columns_to_scale].values.reshape(1, -1) )
+    checkPresence = (dfPlayer['champion_name'] == processed_champName) & (dfPlayer['oppsupp'] == processed_oppChampName)
     
-    toPredict = np.concatenate((scaled_columns_player, encoded_playerChamp,encoded_oppChamp), axis=1) 
+    if sum(checkPresence) > 0:
     
-    # calculate predicted probability
-    pred = int( loaded_model.predict(toPredict) )
-    prob = round(float( loaded_model.predict_proba(toPredict)[:,1] )*100)
-    
+        rowData = dfPlayer.loc[checkPresence].iloc[0]
+        encoded_playerChamp =    ohe.transform(rowData[columns_to_encode_champName].values.reshape(1, -1))
+        encoded_oppChamp =       oheOpp.transform(rowData[columns_to_encode_oppChamp].values.reshape(1, -1))
+        scaled_columns_player  = scaler.transform(rowData[columns_to_scale].values.reshape(1, -1) )
+        
+        toPredict = np.concatenate((scaled_columns_player, encoded_playerChamp,encoded_oppChamp), axis=1) 
+        
+        # calculate predicted probability
+        pred = int( loaded_model.predict(toPredict) )
+        prob = float( loaded_model.predict_proba(toPredict)[:,1] )*100
+    else:
+        pred = -1; prob = 0
+        
     return pred, prob
     
 def create_plot(columns2Keep):
