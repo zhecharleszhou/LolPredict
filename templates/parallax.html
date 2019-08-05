@@ -109,8 +109,9 @@ body, html {
   
   <br><br>
 
-  <h3 class="w3-center">We are predicting your next game with <b> {{ result }} </b> will be a <b> {{ gameOutcome }} </b> with a <b> {{ gameProb }}% </b> Chance!</h3>
-  <img src="https://ddragon.leagueoflegends.com/cdn/9.13.1/img/champion/{{ result }}.png" alt="ChampImage" width="200" height="200" border="3"  class="center">    
+  <h3 class="w3-center">{{ predictResult }}</h3>
+  <br>
+  <img src={{ champImgLink }} alt="ChampImage" align="middle" width="200" height="200" border="3" class="centered">    
   
 </div>
 
@@ -125,12 +126,12 @@ body, html {
 <!-- Container (About Section) -->
 <div class="w3-content w3-container w3-padding-64" id="about">
   <h3 class="w3-center">ABOUT THIS PROJECT</h3>
-  <p> This website aims to provide informative and actionable insight to how players of League of Legends can improve their gameplay. Using our custom-designed machine learning, a player can predict the outcome of their impending match based on
-   his/her individual gameplay performance and selected role.  </p>
+  <p> This website aims to provide informative and actionable insight to how players of League of Legends can improve their gameplay. Using our custom-designed machine learning model, a player can predict the outcome of their impending match based on
+   his/her prior gameplay performance and selected champion.  </p>
   <div class="w3-row">
     <div class="w3-col m6 w3-center w3-padding-large">
       <!-- <p><b><i class="fa fa-user w3-margin-right"></i>_</b></p><br>  -->
-      <img src="https://i.imgur.com/nh89CsB.png" class="w3-round w3-image w3-opacity w3-hover-opacity-off" alt="Figure" width="500" height="333">
+      <img src="https://i.imgur.com/nh89CsB.png" class="w3-round w3-image" alt="Figure" width="500" height="333">
     </div>
 
     <!-- Hide this text on small devices -->
@@ -139,34 +140,44 @@ body, html {
     </div>
   </div>
   
-  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.min.js"></script>
+  <div id="compBarChart" class="container">
   
-  <div class="chart" id="bargraph">
-    <script>
-        var graphs = {{plot | safe}};
-        Plotly.plot('bargraph',graphs,{});
-    </script>
+      <h3 class="w3-center">How Do You Compare To Others?</h3>
+      
+      <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.min.js"></script>
+      
+      <div class="chart" id="bargraph">
+        <script>
+            var graphs = {{plot | safe}};
+            Plotly.plot('bargraph',graphs,{});
+        </script>
+      </div>
+      
+      <h3 class="w3-center">Top Three Important Performance Metrics</h3>
+      <br>
+      <img src="https://vignette.wikia.nocookie.net/leagueoflegends/images/5/53/Ancient_Coin_item.png/revision/latest?cb=20171221054520" alt="GoldIcon" width="60" height="60" align="left" hspace="15"> <p style="font-size:18px;">  You earn more gold compared to the average player. Keep it up!</p>
+      <br><br>
+      <img src="https://vignette.wikia.nocookie.net/leagueoflegends/images/e/e7/Summoner%27s_Rift_Inhibitor_turret.png/revision/latest/scale-to-width-down/350?cb=20181124131447" alt="TurretIcon" width="60" height="60" align="left"> <p style="font-size:18px;">  You deal similar damage to turrets compared to the average player. Try to increase turret damage!</p>
+      <br><br>
+      <img src="https://cdn.vox-cdn.com/thumbor/wWVEmaeYWA7oLk3SlHAW7l4EleY=/0x0:300x300/920x0/filters:focal(0x0:300x300):format(webp):no_upscale()/cdn.vox-cdn.com/uploads/chorus_asset/file/13381829/3799.jpg" alt="KDAIcon" width="60" height="60" align="left"> <p style="font-size:18px;">  You have a similar KDA compared to the average player. Try to increase your KDA!</p>
+      <br><br>
+      
+      <!-- for plotting the bar plots of top 3 features
+      <img src="data:image/png;base64, {{ compBarPlot }}" align="left">
+      -->
+      
   </div>
-  
-  
-  <p class="w3-large w3-center w3-padding-16">You are really good at:</p>
-  
-  <p class="w3-wide"><i class="fa fa-camera"></i>Gold Generation</p>
-  <div class="w3-light-grey">
-    <div class="w3-container w3-padding-small w3-dark-grey w3-center" style="width:90%">90%</div>
-  </div>
-  
-  <p class="w3-wide"><i class="fa fa-laptop"></i>High KDA (Kill/Death/Assist)</p>
-  <div class="w3-light-grey">
-    <div class="w3-container w3-padding-small w3-dark-grey w3-center" style="width:85%">85%</div>
-  </div>
-  
-  <p class="w3-wide"><i class="fa fa-photo"></i>Objective Damage</p>
-  <div class="w3-light-grey">
-    <div class="w3-container w3-padding-small w3-dark-grey w3-center" style="width:75%">75%</div>
-  </div>
-  
+   
+  <script>
+      var c = {{ plotPlayerDat }}
+      if (c == 0) {
+        document.getElementById('compBarChart').style.display = "none"
+        } else {
+        document.getElementById('compBarChart').style.display = ""
+        }
+  </script>
+   
 </div>
 
 

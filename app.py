@@ -1,18 +1,24 @@
 from flask import Flask, render_template, request, redirect
 import plotly
 import plotly.graph_objs as go
+import matplotlib.pyplot as plt
+import io
+import base64
+
 import pandas as pd
 import numpy as np
+import sklearn
+
 import json
 import boto3
 import sys
+
 import cassiopeia as cass
 from cassiopeia import Champion, Champions
 import time
 import requests
 import pickle
 import os
-import sklearn
 
 if sys.version_info[0] < 3: 
     from StringIO import StringIO # Python 2.x
@@ -34,24 +40,52 @@ def index():
         processed_champName = champNameText.capitalize()
         processed_oppChampName = oppChampNameText.capitalize()
         
+        # load champion names and IDs
+        dfChampNames = pd.DataFrame(columns=['champion_name','champion_ID'])
+        champions = Champions(region="NA")
+        index = 0
+        for champion in champions:
+                dfChampNames.loc[index] = [champion.name, champion.id ]
+                index+=1
+        
+        # GRAB AND PROCESS DATA
+        
         role = 'supp'
         columns2Keep = ['champion_name','match_rank_score','max_time','goldearned','wardsplaced','damagedealttoobjectives',
             'damagedealttoturrets','kda','totaldamagedealttochampions', 'totaldamagetaken', 'totalminionskilled',
             'opp'+role]
         
-        dfPlayer,dataYPlayer = getPlayerData(role)
+        dfPlayer,dataYPlayer = getPlayerData(processed_sumName, dfChampNames, role)
+        dataX, dataY = getGeneralData(columns2Keep)
         
-        pred,prob = predictGame(dfPlayer, processed_champName,processed_oppChampName,columns2Keep)
+        pred,prob,sortedInds = predictGame(dfPlayer, processed_champName, processed_oppChampName, columns2Keep)
+        
         if pred == 1:
             predStr = 'WIN'
         else:
             predStr = 'LOSS'
 
-        radarplot = create_plot(columns2Keep)
+        # MAKE PLOTS
+        radarplot = create_plot(dfPlayer, dataX, columns2Keep)
+        compBarPlotURL = create_comparisonBars(dfPlayer, dataX, columns2Keep, sortedInds)
         
-        return render_template("parallax.html/",result = processed_champName, gameOutcome = predStr, gameProb = str(prob), plot=radarplot)
-    else:    
-        return render_template('parallax.html',result = '?', gameOutcome = '?', gameProb = '?')
+        # RETURN PROCESSED VARIABLES AND RENDER HTML
+        
+        if pred == -1:
+            predictText = "You don't have a previous game played with {champName} against {oppChampName} for us to analyze!".format(champName = processed_champName, oppChampName = processed_oppChampName)
+            champImgLink = "https://ddragon.leagueoflegends.com/cdn/9.13.1/img/champion/{}.png".format(processed_champName)
+            
+            return render_template("parallax.html/",predictResult = predictText, champImgLink = champImgLink, champName = processed_champName)
+        
+        else:
+            predictText = "We are predicting your next game with <b> {champName} </b> will be a <b> {gameOutcome} </b> with a <b> {gameProb}% </b> Chance!".format(champName = processed_champName,gameOutcome = predStr,gameProb = round(prob))
+            champImgLink = "https://ddragon.leagueoflegends.com/cdn/9.13.1/img/champion/{}.png".format(processed_champName)
+           
+            return render_template("parallax.html/",predictResult = predictText, champImgLink = champImgLink, champName = processed_champName, plot=radarplot, compBarPlot = compBarPlotURL.decode('utf8'), plotPlayerDat = 1)
+    
+    else:   
+        champImgLink = 'https://www.publicdomainpictures.net/pictures/40000/nahled/question-mark.jpg'
+        return render_template('parallax.html',predictResult = "Input your account name, champion name, and opponent's champion name", champImgLink = champImgLink, plotPlayerDat = 0)
 
 
 ## Get account details by providing the account name
@@ -112,7 +146,7 @@ def getGeneralData(columns2Keep):
     
     return dataX, dataY
 
-def getPlayerData(role):
+def getPlayerData(sumName,dfChampNames,role):
     # define columns to analyze
     
 
@@ -124,8 +158,10 @@ def getPlayerData(role):
     client = boto3.client('s3', aws_access_key_id=aws_id,
             aws_secret_access_key=aws_secret)
     
+    bucket_name = 'lolpredict'
     
     ########################### load player data
+    
 #    APIKey = os.environ.get('League_API')
 #    role = 'supp'
 #    rankNames = ['BRONZE',  'SILVER', 'GOLD', 'PLATINUM', 'DIAMOND', 'MASTERS', 'CHALLENGER']
@@ -134,16 +170,8 @@ def getPlayerData(role):
 #                'player'+role,'opp'+role]
 #    dfPlayer = pd.DataFrame(columns=columnNames)
 #    dataYPlayer = pd.Series(name="win")
-#    
-#    # load champion names and IDs
-#    dfChampNames = pd.DataFrame(columns=['champion_name','champion_ID'])
-#    champions = Champions(region="NA")
-#    index = 0
-#    for champion in champions:
-#            dfChampNames.loc[index] = [champion.name, champion.id ]
-#            index+=1
-#    
-#    summonerName = 'Duvet Cover'
+#
+#    summonerName = 'Duvet Cover' # sumName
 #    summonerData  = requestSummonerData(summonerName, APIKey)
 #    
 #    # Uncomment this line if you want a pretty JSON data dump
@@ -156,15 +184,15 @@ def getPlayerData(role):
 #    matchList  = requestMatchList(accountID, APIKey)
 #       
 #    numMatches = len(matchList ['matches'])
-#    
+#
 #    for iMatch in range(90):
 #    
 #        #print( 'Get match'+ str(iMatch) )
 #        
 #        matchID = matchList ['matches'][iMatch]['gameId'] # get this match's ID
-#        
+#        start_time = time.time()
 #        matchInfo = requestMatchInfo(matchID, APIKey) # pull this game's info from riotAPI
-#                
+#        print("--- %s seconds ---" % (time.time() - start_time))   
 #        # find index of player in player list
 #        for i in range( len(matchInfo['participantIdentities']) ):
 #            thisParticipant = matchInfo['participantIdentities'][i]['player']
@@ -249,8 +277,9 @@ def getPlayerData(role):
 #                else: 
 #                    dataYPlayer.loc[iMatch] = 0
 #            except:
-#                print ('Missing fields')
-#    
+#                pass
+#                #print ('Missing fields')
+#
 #    # get rid of entries where player champ name doesn't match
 #    for index,row in dfPlayer.iterrows():
 #        thisRow_champName = row['champion_name']
@@ -281,8 +310,21 @@ def getPlayerData(role):
 #            champMean.at['champion_name'] = champ
 #            champMean.at['oppsupp'] = oppRoleChamp
 #            dfPlayer.loc[iRow] = champMean
+
+#
+#    fileSavName = 'player_{}.csv'.format(sumName)      
+#    csv_buffer = StringIO()
+#    dfPlayer.to_csv(csv_buffer)
+#    s3_resource = boto3.resource('s3')
+#    s3_resource.Object(bucket, fileSavName).put(Body=csv_buffer.getvalue())
 #    
-    ##############################################
+#    fileSavName = 'player_y_{}.csv'.format(sumName)
+#    csv_buffer = StringIO()
+#    dataYPlayer.to_csv(csv_buffer)
+#    s3_resource = boto3.resource('s3')
+#    s3_resource.Object(bucket, fileSavName).put(Body=csv_buffer.getvalue())
+    
+    ########## END RIOT API GRABBER; ELSE, grab cached csv
      
     bucket_name = 'lolpredict'
     object_key = 'player.csv'
@@ -309,13 +351,17 @@ def predictGame(dfPlayer, processed_champName,processed_oppChampName,columns2Kee
     columns_to_encode_champName = ['champion_name']
     columns_to_encode_oppChamp = ['oppsupp']
     columns_to_scale  = columns2Keep[1:-1]
+    numVars = len(columns_to_scale)
     
-    processed_champName = 'Veigar'
-    processed_oppChampName = 'Pyke'
+    #processed_champName = 'Veigar'
+    #processed_oppChampName = 'Pyke'
     
     #### Load pickled ML feature transformers
     object_key = 'final_logRegLoL.sav'
     loaded_model = getBucketModel(client,bucket_name,object_key)
+    logCoefs_abs = abs(loaded_model.best_estimator_.coef_)
+    logCoefs_absSort = sorted(logCoefs_abs[0,0:numVars],reverse=True)
+    sortedInds = np.argsort(-logCoefs_abs[0,0:numVars])
     
     object_key = 'ohe_lolpredict.sav'
     ohe = getBucketModel(client,bucket_name,object_key)
@@ -327,7 +373,7 @@ def predictGame(dfPlayer, processed_champName,processed_oppChampName,columns2Kee
     scaler = getBucketModel(client,bucket_name,object_key)
     
     checkPresence = (dfPlayer['champion_name'] == processed_champName) & (dfPlayer['oppsupp'] == processed_oppChampName)
-    
+    print(sum(checkPresence))
     if sum(checkPresence) > 0:
     
         rowData = dfPlayer.loc[checkPresence].iloc[0]
@@ -343,15 +389,11 @@ def predictGame(dfPlayer, processed_champName,processed_oppChampName,columns2Kee
     else:
         pred = -1; prob = 0
         
-    return pred, prob
+    return pred, prob, sortedInds
     
-def create_plot(columns2Keep):
+def create_plot(dfPlayer,dataX,columns2Keep):
 
     role = 'supp'
-
-    
-    dfPlayer,dataYPlayer = getPlayerData(role)
-    dataX, dataY = getGeneralData(columns2Keep)
     
     # append column for data group
     tmpData = dataX.drop('champion_name',axis=1).drop('opp'+role,axis=1).assign(Group='data')
@@ -373,7 +415,7 @@ def create_plot(columns2Keep):
     categories = columns2Keep[1:-1]
     
     columns2Keep = ['Player Rank','Game Time','Gold Earned','Wards Placed','Damage to Objectives',
-            'Damage to Turrets','KDA','Damage to Champs', 'Damage Taken', 'Minions Killed',
+            'Damage to Turrets','KDA','Damage to Champions', 'Damage Taken', 'Minions Killed',
             ]
     
     # guide on using flask and plotly: https://code.tutsplus.com/tutorials/charting-using-plotly-in-python--cms-30286
@@ -397,6 +439,53 @@ def create_plot(columns2Keep):
     
     
     return graphJSON
+
+def create_comparisonBars(dfPlayer,dataX,columns2Keep,sortedInds):
+    
+    img = io.BytesIO()
+    
+    columns_to_scale  = columns2Keep[1:-1]
+    
+    topThreeFeatures = [columns_to_scale[i] for i in sortedInds][:3]
+
+    topThreePlayer = dfPlayer[topThreeFeatures].mean(axis=0)
+    topThreeData = dataX[topThreeFeatures].mean(axis=0)
+    
+    # append column for data group
+    tmpData = dataX.drop('champion_name',axis=1).drop('oppsupp',axis=1).assign(Group='data')
+    tmpDataPlayer = dfPlayer.drop('champion_name',axis=1).drop('oppsupp',axis=1).assign(Group='player')
+    allDataWithPlayer = tmpData.append(tmpDataPlayer, ignore_index=True)
+    
+    topThreeAll = allDataWithPlayer[topThreeFeatures].mean(axis=0)
+    stdDevThree_player = allDataWithPlayer[topThreeFeatures].std(axis=0)/2
+    ylimLow = topThreeAll - stdDevThree_player
+    ylimHigh = topThreeAll + stdDevThree_player 
+
+    xLabels=['Your Performance', 'Average Player']
+    tmpTitles = ['Kill/Death/Assist Ratio', 'Gold Earned', 'Damage to Turrets']
+    tmpYlab = ['KDA Ratio','Gold','Damage Units']
+    tmpYlim = [ [0,5.5],[6000,9000],[1000,1700] ]
+    
+    fig2, axs = plt.subplots(1, 3,figsize=(18,4))
+    
+    x_pos = np.arange(len(xLabels))
+    
+    for i in range(3):
+    
+        axs[i].bar(x_pos[0], topThreePlayer[i], align='center', alpha=0.8)
+        axs[i].bar(x_pos[1], topThreeData[i], align='center', alpha=0.8)
+        axs[i].set_title(tmpTitles[i], fontsize = 20)
+        axs[i].set_ylabel(tmpYlab[i], fontsize = 15)
+        axs[i].set_ylim(tmpYlim[i])
+        
+        axs[i].set_xticks(x_pos)
+        axs[i].set_xticklabels(xLabels, rotation=0, fontsize=15)
+
+    plt.savefig(img, format='png')
+    plt.close()   
+    img.seek(0)
+
+    return base64.b64encode(img.getvalue())
 
 @app.route('/about')
 def about():
