@@ -41,12 +41,22 @@ def index():
         processed_oppChampName = oppChampNameText.capitalize()
         
         # load champion names and IDs
-        dfChampNames = pd.DataFrame(columns=['champion_name','champion_ID'])
-        champions = Champions(region="NA")
-        index = 0
-        for champion in champions:
-                dfChampNames.loc[index] = [champion.name, champion.id ]
-                index+=1
+#        dfChampNames = pd.DataFrame(columns=['champion_name','champion_ID'])
+#        champions = Champions(region="NA")
+#        index = 0
+#        for champion in champions:
+#                dfChampNames.loc[index] = [champion.name, champion.id ]
+#                index+=1
+        aws_id = os.environ['AWS_ID']
+        aws_secret = os.environ['AWS_SECRET']
+        
+        client = boto3.client('s3', aws_access_key_id=aws_id,
+                aws_secret_access_key=aws_secret)
+
+        bucket_name = 'lolpredict'
+        object_key = 'champNamesDf.sav'
+        
+        dfChampNames = getBucketModel(client,bucket_name,object_key)
         
         # GRAB AND PROCESS DATA
         
@@ -148,7 +158,6 @@ def getGeneralData(columns2Keep):
 
 def getPlayerData(sumName,dfChampNames,role):
     # define columns to analyze
-    
 
     #load general player data pulled from API
     # get your credentials from environment variables
@@ -157,175 +166,9 @@ def getPlayerData(sumName,dfChampNames,role):
     
     client = boto3.client('s3', aws_access_key_id=aws_id,
             aws_secret_access_key=aws_secret)
-    
-    bucket_name = 'lolpredict'
-    
-    ########################### load player data
-    
-#    APIKey = os.environ.get('League_API')
-#    role = 'supp'
-#    rankNames = ['BRONZE',  'SILVER', 'GOLD', 'PLATINUM', 'DIAMOND', 'MASTERS', 'CHALLENGER']
-#    columnNames = ['champion_name','match_rank_score','max_time','goldearned','wardsplaced','damagedealttoobjectives',
-#                'damagedealttoturrets','kda','totaldamagedealttochampions', 'totaldamagetaken', 'totalminionskilled',
-#                'player'+role,'opp'+role]
-#    dfPlayer = pd.DataFrame(columns=columnNames)
-#    dataYPlayer = pd.Series(name="win")
-#
-#    summonerName = 'Duvet Cover' # sumName
-#    summonerData  = requestSummonerData(summonerName, APIKey)
-#    
-#    # Uncomment this line if you want a pretty JSON data dump
-#    #print(json.dumps(summonerData, sort_keys=True, indent=2))
-#    
-#    ## Pull the ID field from the response data, cast it to an int
-#    ID = summonerData ['id']
-#    accountID = summonerData ['accountId']   
-#        
-#    matchList  = requestMatchList(accountID, APIKey)
-#       
-#    numMatches = len(matchList ['matches'])
-#
-#    for iMatch in range(90):
-#    
-#        #print( 'Get match'+ str(iMatch) )
-#        
-#        matchID = matchList ['matches'][iMatch]['gameId'] # get this match's ID
-#        start_time = time.time()
-#        matchInfo = requestMatchInfo(matchID, APIKey) # pull this game's info from riotAPI
-#        print("--- %s seconds ---" % (time.time() - start_time))   
-#        # find index of player in player list
-#        for i in range( len(matchInfo['participantIdentities']) ):
-#            thisParticipant = matchInfo['participantIdentities'][i]['player']
-#            if 'currentAccountId' in thisParticipant:
-#                playerAcctId = thisParticipant['currentAccountId']
-#            else:
-#                playerAcctId = thisParticipant['accountId']
-#            if playerAcctId == accountID:
-#                playerKey = i
-#        
-#        if matchInfo['participants'][playerKey]['timeline']['role'] == 'DUO_SUPPORT':
-#        
-#            try: 
-#                statsDict = matchInfo['participants'][playerKey]['stats'] # get stats dict from this game
-#                
-#            
-#                ############ preprocess data
-#                
-#                # calculate KDA
-#                if statsDict['deaths'] == 0:
-#                    kda = statsDict['kills'] + statsDict['assists']
-#                else:
-#                    kda = ( statsDict['kills'] + statsDict['assists'] ) / statsDict['deaths']
-#                    
-#                # figure out champion name from ID
-#                thisChampionID = matchInfo['participants'][playerKey]['championId']
-#                tfIndex = dfChampNames['champion_ID'] == thisChampionID
-#                champName =  dfChampNames[tfIndex]['champion_name'].item()
-#                
-#                # figure out player's match rank
-#                thisRank = matchInfo['participants'][playerKey]['highestAchievedSeasonTier']
-#                matchRank = rankNames.index(thisRank) + 1
-#                
-#                teamID = matchInfo['participants'][playerKey]['teamId'] 
-#                for iParticipant in range(0,10):
-#                        thisRole = matchInfo['participants'][iParticipant]['timeline']['role']
-#                        thisLane = matchInfo['participants'][iParticipant]['timeline']['lane']
-#                        thisTeamID = matchInfo['participants'][iParticipant]['teamId']
-#                        
-#                        thisPlayerChampionID = matchInfo['participants'][iParticipant]['championId']
-#                        champIndex = dfChampNames['champion_ID'] == thisPlayerChampionID
-#                        thisChampName =  dfChampNames[champIndex]['champion_name'].item()
-#    
-#                        tmpID = "{}_{}".format(thisRole,thisLane)
-#                        
-#                        if tmpID == 'SOLO_TOP' and thisTeamID == teamID: 
-#                            playerTop = thisChampName
-#                        elif tmpID == 'NONE_JUNGLE' and thisTeamID == teamID:
-#                            playerJung = thisChampName
-#                        elif tmpID == 'SOLO_MIDDLE' and thisTeamID == teamID:
-#                            playerMid = thisChampName
-#                        elif tmpID == 'DUO_CARRY_BOTTOM' and thisTeamID == teamID:
-#                            playerADC = thisChampName
-#                        elif tmpID == 'DUO_SUPPORT_BOTTOM' and thisTeamID == teamID:
-#                            playerSupp = thisChampName
-#                        elif tmpID == 'SOLO_TOP' and thisTeamID != teamID:
-#                            oppTop = thisChampName
-#                        elif tmpID == 'NONE_JUNGLE' and thisTeamID != teamID:
-#                            oppJung = thisChampName
-#                        elif tmpID == 'SOLO_MIDDLE' and thisTeamID != teamID:
-#                            oppMid = thisChampName
-#                        elif tmpID == 'DUO_CARRY_BOTTOM' and thisTeamID != teamID:   
-#                            oppADC = thisChampName
-#                        elif tmpID == 'DUO_SUPPORT_BOTTOM' and thisTeamID != teamID: 
-#                            oppSupp = thisChampName
-#                
-#                ############ preprocess data end
-#    
-#                # create a vector of data to append for this match
-#                addVector = [ champName, matchRank, matchInfo['gameDuration'], statsDict['goldEarned'], 
-#                             statsDict['wardsPlaced'], statsDict['damageDealtToObjectives'], 
-#                             statsDict['damageDealtToTurrets'], kda, 
-#                             statsDict['totalDamageDealtToChampions'],
-#                             statsDict['totalDamageTaken'],statsDict['totalMinionsKilled'],
-#                             eval('player'+role.capitalize()), eval('opp'+role.capitalize())
-#                        ]
-#                
-#                
-#                dfPlayer.loc[iMatch] = addVector
-#                if statsDict['win'] == True: 
-#                    dataYPlayer.loc[iMatch] = 1
-#                else: 
-#                    dataYPlayer.loc[iMatch] = 0
-#            except:
-#                pass
-#                #print ('Missing fields')
-#
-#    # get rid of entries where player champ name doesn't match
-#    for index,row in dfPlayer.iterrows():
-#        thisRow_champName = row['champion_name']
-#        thisRow_playerRole = row['playersupp'] 
-#   
-#        if thisRow_champName != thisRow_playerRole:
-#  
-#            dfPlayer = dfPlayer.drop(index)
-#            dataYPlayer = dataYPlayer.drop(index)
-#            
-#    # calculate mean across matches for post-game metrics
-#    dfPlayer_shape = dfPlayer.shape    
-#    row_index_list = range(0,dfPlayer_shape[0]) # get range for all row indices
-#    column_list = columnNames[1:-2] # skip champ name column
-#    
-#    uniquePlayerChamps = dfPlayer.champion_name.unique()
-#    
-#    # take mean across continuous columns        
-#    for champ in uniquePlayerChamps:
-#        
-#        tmp = dfPlayer.loc[dfPlayer['champion_name'] == champ]
-#        champMean = tmp[column_list].mean(axis=0)
-#    
-#        # replace all rows of dfPlayer with mean
-#        for iRow in tmp.index : # 
-#      
-#            oppRoleChamp = dfPlayer.loc[iRow]['oppsupp']
-#            champMean.at['champion_name'] = champ
-#            champMean.at['oppsupp'] = oppRoleChamp
-#            dfPlayer.loc[iRow] = champMean
 
-#
-#    fileSavName = 'player_{}.csv'.format(sumName)      
-#    csv_buffer = StringIO()
-#    dfPlayer.to_csv(csv_buffer)
-#    s3_resource = boto3.resource('s3')
-#    s3_resource.Object(bucket, fileSavName).put(Body=csv_buffer.getvalue())
-#    
-#    fileSavName = 'player_y_{}.csv'.format(sumName)
-#    csv_buffer = StringIO()
-#    dataYPlayer.to_csv(csv_buffer)
-#    s3_resource = boto3.resource('s3')
-#    s3_resource.Object(bucket, fileSavName).put(Body=csv_buffer.getvalue())
-    
-    ########## END RIOT API GRABBER; ELSE, grab cached csv
-     
+    # add code for pulling data from riot API for other players
+
     bucket_name = 'lolpredict'
     object_key = 'player.csv'
     dfPlayer = getBucketFile(client,bucket_name,object_key)
