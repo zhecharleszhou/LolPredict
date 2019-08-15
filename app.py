@@ -202,7 +202,7 @@ def predictGame(dfPlayer, processed_champName,processed_oppChampName,columns2Kee
     #### Load pickled ML feature transformers
     object_key = 'final_logRegLoL.sav'
     loaded_model = getBucketModel(client,bucket_name,object_key)
-    logCoefs_abs = abs(loaded_model.best_estimator_.coef_)
+    logCoefs_abs = abs(loaded_model.coef_)
     logCoefs_absSort = sorted(logCoefs_abs[0,0:numVars],reverse=True)
     sortedInds = np.argsort(-logCoefs_abs[0,0:numVars])
     
