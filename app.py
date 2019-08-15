@@ -85,7 +85,7 @@ def index():
             predictText = "You don't have a previous game played with {champName} against {oppChampName} for us to analyze!".format(champName = processed_champName, oppChampName = processed_oppChampName)
             champImgLink = "https://ddragon.leagueoflegends.com/cdn/9.13.1/img/champion/{}.png".format(processed_champName)
             
-            return render_template("parallax.html/",predictResult = predictText, champImgLink = champImgLink, champName = processed_champName)
+            return render_template("parallax.html/",predictResult = predictText, champImgLink = champImgLink, champName = processed_champName, plotPlayerDat = 0)
         
         else:
             predictText = "We are predicting your next game with <b> {champName} </b> will be a <b> {gameOutcome} </b> with a <b> {gameProb}% </b> Chance!".format(champName = processed_champName,gameOutcome = predStr,gameProb = round(prob))
@@ -216,7 +216,7 @@ def predictGame(dfPlayer, processed_champName,processed_oppChampName,columns2Kee
     scaler = getBucketModel(client,bucket_name,object_key)
     
     checkPresence = (dfPlayer['champion_name'] == processed_champName) & (dfPlayer['oppsupp'] == processed_oppChampName)
-    print(sum(checkPresence))
+    #print(sum(checkPresence))
     if sum(checkPresence) > 0:
     
         rowData = dfPlayer.loc[checkPresence].iloc[0]
