@@ -1,6 +1,6 @@
 gunicorn==19.9.0
 requests==2.20.0
-flask==1.0.3
+flask==2.2.5
 bokeh==1.2.0
 plotly==4.0.0
 pandas==0.24.2
